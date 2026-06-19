@@ -30,9 +30,23 @@ path: *build hybrid, but ship standard compute first.*
 | Typography polish: letter-spacing, uppercase, legibility shadow, measured fit | ✅ P2 |
 | **SVG export** (vector text + feTurbulence noise) | ✅ P2 |
 | **Batch variations** → dependency-free ZIP + recipes manifest | ✅ P2 |
+| **`banner-core` headless boundary** + Node CLI (`npm run banner`) | ✅ R |
+| **Deterministic text measurement** — byte-identical in browser + Node | ✅ R |
+| Bundled OFL fonts (Inter, JetBrains Mono, Lora) — no system-font drift | ✅ R |
+| Golden contract tests (`npm test`) | ✅ R |
 | AI provider contract defined, stubbed | ✅ (inactive) |
 | AI concept/palette/refiner generation | ⏳ Phase 3 |
+| Stdio MCP server (expose tools to AI agents) | ⏳ next |
 | Tauri wrapper, preset packs, page-type recipes | ⏳ Phase 4 |
+
+> **R = reliability layer** (MCP-readiness). Before exposing the renderer to AI
+> agents, the core was made *boringly trustworthy*: a headless `banner-core`
+> boundary, and **the same recipe renders identically in the browser and in
+> Node**. Text is measured from bundled font bytes via a tiny dependency-free TTF
+> reader (`fontMetrics.ts`), so wrapping/scaling is a pure function of the inputs
+> — proven byte-identical across environments (`scripts/determinism.ts`). This
+> also fixed a latent bug: the app never bundled a webfont, so the canvas was
+> silently rendering in a fallback face.
 
 ## Design decisions (vs. the concept doc)
 
@@ -56,6 +70,7 @@ special case.
 
 ```
 src/
+  core/index.ts      # banner-core: the headless-safe public surface (import boundary)
   engine/            # deterministic, framework-free render core
     types.ts         #   canonical schema + safe-area + font registry
     rng.ts           #   seeded PRNG (same seed => same pixels)
@@ -64,7 +79,8 @@ src/
     patterns.ts      #   11 patterns -> Scene primitives
     textures.ts      #   noise / grain / vignette -> Scene primitives
     layouts.ts       #   safe-area-anchored typography + glyph -> primitives
-    measure.ts       #   offscreen text measurement for wrap/fit
+    fontMetrics.ts   #   dependency-free TTF reader (per-glyph advances)
+    fonts.ts         #   env-agnostic registerFont + measureWidth + fontsReady
     buildScene.ts    #   bg -> pattern -> type -> texture, into one Scene
     backends/
       canvasBackend.ts #  Scene -> 2D canvas (preview + PNG)
@@ -72,21 +88,29 @@ src/
     renderBanner.ts  #   façade: buildScene + pick a backend
     exportImage.ts   #   PNG + SVG + batch-ZIP export + recipes
     zip.ts           #   dependency-free STORED zip writer
-  data/
-    presetSchema.ts  #   coercion/validation for untrusted presets
-    defaultPresets.ts#   6 built-ins
-    storage.ts       #   localStorage (swappable for Dexie later)
-  ai/
-    providers.ts     #   provider contract + Phase-3 stub + redaction
+  data/              # presetSchema (coercion), defaultPresets, storage
+  ai/providers.ts    # provider contract + Phase-3 stub + redaction
+  web/fonts.ts       # browser-only font loader (fetch buffers + FontFace)
   components/        # React UI (BannerCanvas, panels, primitives)
+  assets/fonts/      # bundled OFL TTFs (Inter, JetBrains Mono, Lora)
   App.tsx            # orchestrator
+cli/banner.ts        # headless CLI (imports only banner-core; SVG + resvg PNG)
+tests/fixtures.test.ts  # golden contract tests (npm test)
+scripts/determinism.ts  # proves measureWidth is identical browser vs Node
 ```
 
-The engine has **no React dependency**. The key Phase 2 move is the **Scene** —
-an ordered list of backend-agnostic primitives (`scene.ts`). The renderer builds
-a Scene from `{ preset, content }`; a Canvas backend rasterizes it and an SVG
-backend serializes it. One source of truth means Canvas and SVG **cannot visually
-drift**, and new export formats are just new backends.
+The engine has **no React dependency**, and `core/index.ts` exports only the
+**headless-safe** surface (schema, Scene, SVG render, presets, measurement) — the
+canvas/DOM bits are deliberately excluded, so the CLI/MCP can't accidentally pull
+in browser code.
+
+Two invariants make the output trustworthy:
+1. **One source of truth (Scene).** The renderer builds a Scene of primitives;
+   Canvas and SVG backends both consume it, so they can't visually drift.
+2. **Pure measurement.** Text width comes from bundled font bytes
+   (`fontMetrics.ts`), not the platform's `measureText` — so wrapping is
+   identical in every browser and in Node. The same recipe is the same banner
+   everywhere.
 
 ## Develop
 
@@ -95,15 +119,33 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # tsc -b && vite build  (typechecked)
 npm run preview
+npm test           # golden contract fixtures
 ```
 
-### Verify visuals
+### Headless CLI (no browser)
+
+`banner-core` renders without a DOM — this is what an MCP server will wrap.
+
+```bash
+npm run banner -- --list
+npm run banner -- --title "Quarterly Review" --preset "Radial Burst" --png
+# -> nbg-cli-out.svg + nbg-cli-out.png, "text metrics: exact"
+```
+
+### Verify visuals / determinism
 
 ```bash
 npm run preview &                          # or: npx vite
 node scripts/screenshot.mjs http://localhost:4173/notion-banner-generator/
-# -> verify-app.png, verify-banner.png
+npx tsx scripts/determinism.ts             # measureWidth: Node == browser
 ```
+
+## Fonts
+
+Bundled OFL fonts live in `src/assets/fonts/` (Inter, JetBrains Mono, Lora; see
+`OFL.txt`). The same TTF bytes drive measurement, browser canvas rendering, and
+Node/resvg rendering — which is what makes layout deterministic across
+environments.
 
 ## Deploy
 
