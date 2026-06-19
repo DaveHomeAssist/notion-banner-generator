@@ -7,7 +7,13 @@ import type {
 } from "./engine/types";
 import { LAYOUTS, PATTERNS, TEXTURES, FONT_REGISTRY } from "./engine/types";
 import { effectiveSeed } from "./engine/renderBanner";
-import { renderToPng, downloadBlob, buildRecipe } from "./engine/exportImage";
+import {
+  renderToPng,
+  renderToSvg,
+  exportBatch,
+  downloadBlob,
+  buildRecipe,
+} from "./engine/exportImage";
 import { defaultPresets } from "./data/defaultPresets";
 import { forkPreset, makePresetId } from "./data/presetSchema";
 import {
@@ -77,10 +83,29 @@ export default function App() {
     setPreset(structuredClone(forked));
   }
 
+  const [batchCount, setBatchCount] = useState(4);
+  const [busy, setBusy] = useState(false);
+
   async function exportPng() {
     const { blob, filename } = await renderToPng(input);
     downloadBlob(blob, filename);
     setRecents(pushRecent(buildRecipe(input)));
+  }
+
+  function exportSvg() {
+    const { blob, filename } = renderToSvg(input);
+    downloadBlob(blob, filename);
+    setRecents(pushRecent(buildRecipe(input)));
+  }
+
+  async function exportVariations() {
+    setBusy(true);
+    try {
+      const { blob, filename } = await exportBatch(input, batchCount);
+      downloadBlob(blob, filename);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function exportRecipe() {
@@ -142,6 +167,19 @@ export default function App() {
             <Field label={`Title scale: ${preset.typography.scale.toFixed(2)}×`}>
               <Range value={preset.typography.scale} min={0.6} max={1.6} step={0.05} onChange={(v) => updateType({ scale: v })} />
             </Field>
+            <Field label={`Letter spacing: ${preset.typography.letterSpacing.toFixed(2)}em`}>
+              <Range value={preset.typography.letterSpacing} min={-0.04} max={0.3} step={0.01} onChange={(v) => updateType({ letterSpacing: v })} />
+            </Field>
+            <div className="flex gap-4 pt-1">
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={preset.typography.uppercase} onChange={(e) => updateType({ uppercase: e.target.checked })} className="accent-sky-500" />
+                Uppercase
+              </label>
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={preset.typography.shadow} onChange={(e) => updateType({ shadow: e.target.checked })} className="accent-sky-500" />
+                Text shadow
+              </label>
+            </div>
           </Section>
 
           <Section title="Palette">
@@ -216,9 +254,26 @@ export default function App() {
           <Section title="Export">
             <div className="flex flex-col gap-2">
               <Button variant="primary" onClick={exportPng}>Download PNG (1500 × 600)</Button>
-              <Button onClick={exportRecipe}>Download recipe JSON</Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={exportSvg}>Vector SVG</Button>
+                <Button onClick={exportRecipe}>Recipe JSON</Button>
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <select
+                  value={batchCount}
+                  onChange={(e) => setBatchCount(Number(e.target.value))}
+                  className="rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-sm text-slate-100"
+                >
+                  {[4, 8, 12].map((n) => (
+                    <option key={n} value={n} className="bg-slate-900">{n}</option>
+                  ))}
+                </select>
+                <Button onClick={exportVariations} disabled={busy} title="Export N seeded variations as a ZIP">
+                  {busy ? "Bundling…" : "Export variations .zip"}
+                </Button>
+              </div>
               <p className="text-xs text-slate-500">
-                Drop the PNG into a Notion page → <em>Add cover → Upload</em>. The recipe JSON reproduces this exact banner later.
+                Drop the PNG into a Notion page → <em>Add cover → Upload</em>. SVG stays editable vector; the ZIP bundles N seeded variations + recipes.
               </p>
             </div>
           </Section>

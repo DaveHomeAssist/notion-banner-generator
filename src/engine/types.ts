@@ -40,6 +40,10 @@ export const PATTERNS = [
   "radial-burst",
   "orbital-grid",
   "diagonal-rule",
+  "waves",
+  "concentric",
+  "halftone",
+  "mesh",
 ] as const;
 export type PatternId = (typeof PATTERNS)[number];
 
@@ -69,6 +73,12 @@ export interface Typography {
   titleFont: FontId;
   weight: number;
   scale: number;
+  /** Tracking, in em (e.g. 0.04). Phase 2 polish. */
+  letterSpacing: number;
+  /** Render the title in uppercase. */
+  uppercase: boolean;
+  /** Soft shadow behind text for legibility over busy patterns. */
+  shadow: boolean;
 }
 
 /** Optional art-direction metadata produced by the AI layer. Render-irrelevant

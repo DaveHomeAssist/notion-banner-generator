@@ -1,61 +1,35 @@
 import type { Palette, TextureId } from "./types";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "./types";
 import { rgba } from "./palettes";
-import type { Rng } from "./rng";
+import type { Primitive } from "./scene";
 
-// Finishing-pass textures, drawn last over everything. Kept deliberately subtle
+// Finishing-pass textures, emitted as Scene primitives. Kept deliberately subtle
 // so banners read as "designed", never noisy (the stated style goal).
 
-type Ctx = CanvasRenderingContext2D;
 const W = CANVAS_WIDTH;
 const H = CANVAS_HEIGHT;
 
-export function drawTexture(
-  ctx: Ctx,
-  texture: TextureId,
-  palette: Palette,
-  rng: Rng,
-): void {
+export function texturePrimitives(texture: TextureId, palette: Palette): Primitive[] {
   switch (texture) {
     case "none":
-      return;
+      return [];
     case "subtle-noise":
-      return noise(ctx, rng, 0.04);
+      return [{ kind: "noise", intensity: 0.04 }];
     case "grain":
-      return noise(ctx, rng, 0.08);
+      return [{ kind: "noise", intensity: 0.08 }];
     case "vignette":
-      return vignette(ctx, palette);
+      return [
+        {
+          kind: "radialGradient",
+          cx: W / 2,
+          cy: H / 2,
+          r0: Math.min(W, H) * 0.25,
+          r1: Math.max(W, H) * 0.75,
+          stops: [
+            { offset: 0, color: rgba(palette.background, 0) },
+            { offset: 1, color: rgba(palette.background, 0.55) },
+          ],
+        },
+      ];
   }
-}
-
-function noise(ctx: Ctx, rng: Rng, intensity: number): void {
-  // Sparse monochrome speckle. Drawing individual pixels for 1500x600 is too
-  // slow, so we stamp small translucent dots from the seeded stream.
-  const count = Math.floor(W * H * intensity * 0.02);
-  ctx.save();
-  for (let i = 0; i < count; i++) {
-    const x = rng.range(0, W);
-    const y = rng.range(0, H);
-    const v = rng.next() > 0.5 ? 255 : 0;
-    ctx.fillStyle = `rgba(${v}, ${v}, ${v}, ${rng.range(0.02, 0.06)})`;
-    ctx.fillRect(x, y, 1.3, 1.3);
-  }
-  ctx.restore();
-}
-
-function vignette(ctx: Ctx, palette: Palette): void {
-  const g = ctx.createRadialGradient(
-    W / 2,
-    H / 2,
-    Math.min(W, H) * 0.25,
-    W / 2,
-    H / 2,
-    Math.max(W, H) * 0.75,
-  );
-  g.addColorStop(0, rgba(palette.background, 0));
-  g.addColorStop(1, rgba(palette.background, 0.55));
-  ctx.save();
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
 }
