@@ -34,9 +34,9 @@ path: *build hybrid, but ship standard compute first.*
 | **Deterministic text measurement** — byte-identical in browser + Node | ✅ R |
 | Bundled OFL fonts (Inter, JetBrains Mono, Lora) — no system-font drift | ✅ R |
 | Golden contract tests (`npm test`) | ✅ R |
+| **Stdio MCP server** — 5 tools over banner-core (`npm run mcp`) | ✅ R |
 | AI provider contract defined, stubbed | ✅ (inactive) |
 | AI concept/palette/refiner generation | ⏳ Phase 3 |
-| Stdio MCP server (expose tools to AI agents) | ⏳ next |
 | Tauri wrapper, preset packs, page-type recipes | ⏳ Phase 4 |
 
 > **R = reliability layer** (MCP-readiness). Before exposing the renderer to AI
@@ -146,6 +146,45 @@ Bundled OFL fonts live in `src/assets/fonts/` (Inter, JetBrains Mono, Lora; see
 `OFL.txt`). The same TTF bytes drive measurement, browser canvas rendering, and
 Node/resvg rendering — which is what makes layout deterministic across
 environments.
+
+## MCP server
+
+A stdio [MCP](https://modelcontextprotocol.io) server (`mcp/server.ts`) exposes
+the generator as AI-callable tools — a thin wrapper over `banner-core`, so a
+banner rendered by an agent is identical to one from the web app or CLI.
+
+```bash
+npm run mcp          # speak MCP over stdio
+npm run mcp:smoke    # spawn the server + drive a real client through all 5 tools
+```
+
+| Tool | Purpose |
+|---|---|
+| `list_presets` | List built-in styles (call first to choose a `presetId`) |
+| `create_recipe` | Turn title/subtitle/preset/seed/overrides into a validated recipe |
+| `validate_recipe` | Coerce an arbitrary recipe to render-ready; reports what changed |
+| `render_svg` | Vector SVG (returned inline + written to the sandbox) |
+| `render_png` | 1500×600 PNG via resvg; returns a `file://` resource link |
+
+Intended agent flow: **list_presets → create_recipe → (validate_recipe) →
+render_svg / render_png**. Guardrails: stdout is reserved for the protocol (logs
+go to stderr); exports are written only to a sandboxed dir (`NBG_EXPORTS_DIR`,
+default `./exports`) — model-supplied paths are never honored; title/subtitle
+are length-capped and all preset values are coerced.
+
+Register it with an MCP client (e.g. Claude Desktop / Code):
+
+```json
+{
+  "mcpServers": {
+    "notion-banner": {
+      "command": "npx",
+      "args": ["tsx", "mcp/server.ts"],
+      "cwd": "/absolute/path/to/notion-banner-generator"
+    }
+  }
+}
+```
 
 ## Deploy
 
