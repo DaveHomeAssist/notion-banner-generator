@@ -1,0 +1,110 @@
+import type { BannerPreset } from "../engine/types";
+
+// Six built-in presets covering the core style range. Default (first) is the
+// lowest-risk look: gradient field + soft noise, hard to make look bad.
+
+export const defaultPresets: BannerPreset[] = [
+  {
+    id: "builtin-gradient-field",
+    name: "Gradient Field",
+    mode: "standard",
+    palette: {
+      background: "#0F172A",
+      primary: "#38BDF8",
+      secondary: "#F59E0B",
+      accent: "#E5E7EB",
+    },
+    layout: "centered-title",
+    pattern: "none",
+    texture: "subtle-noise",
+    typography: { titleFont: "Inter", weight: 700, scale: 1 },
+    glyph: "✦",
+    seed: "gradient-field",
+  },
+  {
+    id: "builtin-system-blueprint",
+    name: "System Blueprint",
+    mode: "standard",
+    palette: {
+      background: "#111827",
+      primary: "#60A5FA",
+      secondary: "#F97316",
+      accent: "#F8FAFC",
+    },
+    layout: "left-title-right-glyph",
+    pattern: "grid",
+    texture: "subtle-noise",
+    typography: { titleFont: "Inter", weight: 700, scale: 1 },
+    glyph: "▦",
+    seed: "system-blueprint",
+  },
+  {
+    id: "builtin-topographic",
+    name: "Topographic",
+    mode: "standard",
+    palette: {
+      background: "#052E2B",
+      primary: "#2DD4BF",
+      secondary: "#FBBF24",
+      accent: "#ECFDF5",
+    },
+    layout: "lower-left-title",
+    pattern: "topographic",
+    texture: "grain",
+    typography: { titleFont: "Inter", weight: 800, scale: 0.95 },
+    glyph: "◬",
+    seed: "topographic",
+  },
+  {
+    id: "builtin-terminal",
+    name: "Terminal",
+    mode: "standard",
+    palette: {
+      background: "#0A0A0A",
+      primary: "#22C55E",
+      secondary: "#3B82F6",
+      accent: "#E5E7EB",
+    },
+    layout: "split-block",
+    pattern: "diagonal-rule",
+    texture: "none",
+    typography: { titleFont: "JetBrains Mono", weight: 700, scale: 0.9 },
+    glyph: "›_",
+    seed: "terminal",
+  },
+  {
+    id: "builtin-radial-burst",
+    name: "Radial Burst",
+    mode: "standard",
+    palette: {
+      background: "#1E1B4B",
+      primary: "#A78BFA",
+      secondary: "#F472B6",
+      accent: "#F8FAFC",
+    },
+    layout: "centered-title-orbit-pattern",
+    pattern: "radial-burst",
+    texture: "vignette",
+    typography: { titleFont: "Inter", weight: 800, scale: 1.05 },
+    glyph: "✺",
+    seed: "radial-burst",
+  },
+  {
+    id: "builtin-editorial",
+    name: "Minimal Editorial",
+    mode: "standard",
+    palette: {
+      background: "#FAFAF9",
+      primary: "#1C1917",
+      secondary: "#B91C1C",
+      accent: "#1C1917",
+    },
+    layout: "lower-left-title",
+    pattern: "none",
+    texture: "none",
+    typography: { titleFont: "Georgia", weight: 700, scale: 1.1 },
+    seed: "editorial",
+  },
+];
+
+export const defaultPresetId = defaultPresets[0].id;
