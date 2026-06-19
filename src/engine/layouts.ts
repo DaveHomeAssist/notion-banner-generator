@@ -1,7 +1,7 @@
-import type { BannerContent, LayoutId, Palette, Typography } from "./types";
-import { CANVAS_WIDTH, CANVAS_HEIGHT, SAFE_AREA, resolveFont } from "./types";
+import type { BannerContent, FontId, LayoutId, Palette, Typography } from "./types";
+import { CANVAS_WIDTH, CANVAS_HEIGHT, SAFE_AREA, resolveFont, GLYPH_FONT_STACK } from "./types";
 import { readableInk, rgba } from "./palettes";
-import { measureWidth } from "./measure";
+import { measureWidth } from "./fonts";
 import type { Primitive } from "./scene";
 
 // Typography + glyph placement, emitted as Scene primitives. Everything is
@@ -76,10 +76,11 @@ function titleBlock(content: BannerContent, typography: Typography, ink: string,
   if (subtitle && typography.uppercase) subtitle = subtitle.toUpperCase();
 
   // Auto-scale: shrink until the wrapped title fits 2 lines.
+  const fontId = typography.titleFont;
   let size = Math.round(96 * typography.scale);
   let lines: string[] = [];
   for (; size >= 30; size -= 2) {
-    lines = wrap(title, opts.maxW, font, size, typography.weight, ls);
+    lines = wrap(title, opts.maxW, fontId, size, ls);
     if (lines.length <= 2) break;
   }
 
@@ -112,7 +113,7 @@ function titleBlock(content: BannerContent, typography: Typography, ink: string,
       kind: "text",
       x: opts.x,
       y: y + subSize * 0.4,
-      text: truncate(subtitle, opts.maxW, font, subSize, 500, ls),
+      text: truncate(subtitle, opts.maxW, fontId, subSize, ls),
       font,
       size: subSize,
       weight: 500,
@@ -132,7 +133,7 @@ function glyphPrim(glyph: string, x: number, y: number, palette: Palette): Primi
       x,
       y,
       text: glyph,
-      font: resolveFont("System"),
+      font: GLYPH_FONT_STACK,
       size: 180,
       weight: 400,
       color: rgba(palette.accent, 0.92),
@@ -143,13 +144,13 @@ function glyphPrim(glyph: string, x: number, y: number, palette: Palette): Primi
   ];
 }
 
-function wrap(text: string, maxW: number, font: string, size: number, weight: number, ls: number): string[] {
+function wrap(text: string, maxW: number, fontId: FontId, size: number, ls: number): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let cur = "";
   for (const word of words) {
     const test = cur ? `${cur} ${word}` : word;
-    if (measureWidth(test, font, size, weight, ls) > maxW && cur) {
+    if (measureWidth(test, fontId, size, ls) > maxW && cur) {
       lines.push(cur);
       cur = word;
     } else {
@@ -160,9 +161,9 @@ function wrap(text: string, maxW: number, font: string, size: number, weight: nu
   return lines;
 }
 
-function truncate(text: string, maxW: number, font: string, size: number, weight: number, ls: number): string {
-  if (measureWidth(text, font, size, weight, ls) <= maxW) return text;
+function truncate(text: string, maxW: number, fontId: FontId, size: number, ls: number): string {
+  if (measureWidth(text, fontId, size, ls) <= maxW) return text;
   let t = text;
-  while (t.length > 1 && measureWidth(t + "…", font, size, weight, ls) > maxW) t = t.slice(0, -1);
+  while (t.length > 1 && measureWidth(t + "…", fontId, size, ls) > maxW) t = t.slice(0, -1);
   return t + "…";
 }

@@ -102,7 +102,7 @@ export const defaultPresets: BannerPreset[] = [
     layout: "lower-left-title",
     pattern: "none",
     texture: "none",
-    typography: { titleFont: "Georgia", weight: 700, scale: 1.1, letterSpacing: 0.02, uppercase: false, shadow: false },
+    typography: { titleFont: "Lora", weight: 700, scale: 1.1, letterSpacing: 0.02, uppercase: false, shadow: false },
     seed: "editorial",
   },
 ];

@@ -50,17 +50,23 @@ export type PatternId = (typeof PATTERNS)[number];
 export const TEXTURES = ["none", "subtle-noise", "grain", "vignette"] as const;
 export type TextureId = (typeof TEXTURES)[number];
 
-/** Bundled, license-clear fonts. AI/import font values are validated against
- * this registry; unknown values fall back to the default rather than silently
- * substituting a system font. */
+/** Bundled, license-clear (OFL) fonts. Every title font here ships as a real
+ * TTF so the same glyph metrics drive measurement (opentype-free reader),
+ * browser canvas rendering, and Node/resvg rendering — identical everywhere.
+ * AI/import font values are validated against this registry; unknown values
+ * fall back to the default rather than silently substituting a system font. */
 export const FONT_REGISTRY = {
   Inter: '"Inter", system-ui, -apple-system, "Segoe UI", sans-serif',
   "JetBrains Mono": '"JetBrains Mono", ui-monospace, "SF Mono", monospace',
-  Georgia: 'Georgia, "Times New Roman", serif',
-  System: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  Lora: '"Lora", Georgia, "Times New Roman", serif',
 } as const;
 export type FontId = keyof typeof FONT_REGISTRY;
 export const DEFAULT_FONT: FontId = "Inter";
+
+/** Font stack for decorative glyphs (emoji/symbols). Glyphs are placed at fixed
+ * points and never measured, so this can stay a broad system stack. */
+export const GLYPH_FONT_STACK =
+  'system-ui, -apple-system, "Segoe UI", "Noto Color Emoji", sans-serif';
 
 export interface Palette {
   background: string;

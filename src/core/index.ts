@@ -44,9 +44,15 @@ export { sceneToSvg } from "../engine/backends/svgBackend";
 /** Build a Scene and serialize it straight to an SVG string. Headless-safe. */
 export { renderBannerSvg } from "../engine/renderBanner";
 
-// --- Whether pixel-accurate text measurement is available in this environment.
-// false in plain Node today (falls back to a width heuristic) — see step 2.
-export { hasMeasurementContext } from "../engine/measure";
+// --- Font metrics layer. Loaders (web/node) call registerFont with the same
+// TTF bytes; measurement is then byte-identical across environments.
+export {
+  FONT_FILES,
+  registerFont,
+  measureWidth,
+  fontsReady,
+  hasFont,
+} from "../engine/fonts";
 
 // --- Presets + validation/coercion (pure) ---
 export { defaultPresets, defaultPresetId } from "../data/defaultPresets";

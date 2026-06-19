@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   BannerContent,
   BannerMode,
@@ -22,6 +22,7 @@ import {
   loadRecents,
   pushRecent,
 } from "./data/storage";
+import { ensureWebFonts } from "./web/fonts";
 import { BannerCanvas } from "./components/BannerCanvas";
 import {
   Section,
@@ -48,6 +49,16 @@ export default function App() {
   });
   const [mode, setMode] = useState<BannerMode>("standard");
   const [showSafeArea, setShowSafeArea] = useState(true);
+
+  // Load bundled fonts once; flip a flag so canvases re-measure/redraw exactly.
+  // On failure we still proceed (engine falls back to a width heuristic).
+  const [fontsReady, setFontsReady] = useState(false);
+  useEffect(() => {
+    ensureWebFonts().then(
+      () => setFontsReady(true),
+      () => setFontsReady(true),
+    );
+  }, []);
 
   const allPresets = useMemo(() => [...defaultPresets, ...savedPresets], [savedPresets]);
   const input: RenderInput = useMemo(() => ({ preset, content }), [preset, content]);
@@ -205,7 +216,7 @@ export default function App() {
             </div>
           </div>
 
-          <BannerCanvas input={input} showSafeArea={showSafeArea} seedNonce={preset.seed ? 1 : 0} />
+          <BannerCanvas input={input} showSafeArea={showSafeArea} seedNonce={preset.seed ? 1 : 0} fontsReady={fontsReady} />
 
           <div>
             <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Variations</h2>
@@ -220,7 +231,7 @@ export default function App() {
                     className="overflow-hidden rounded-md ring-1 ring-white/10 transition hover:ring-sky-400/60"
                     title="Adopt this variation"
                   >
-                    <BannerCanvas input={input} showSafeArea={false} seedOverride={variantSeed} seedNonce={i} />
+                    <BannerCanvas input={input} showSafeArea={false} seedOverride={variantSeed} seedNonce={i} fontsReady={fontsReady} />
                   </button>
                 );
               })}

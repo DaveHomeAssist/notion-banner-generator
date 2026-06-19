@@ -12,9 +12,11 @@ interface Props {
   showSafeArea: boolean;
   seedNonce?: number;
   seedOverride?: string;
+  /** Bumped when web fonts finish loading so text re-measures/redraws exactly. */
+  fontsReady?: boolean;
 }
 
-export function BannerCanvas({ input, showSafeArea, seedNonce, seedOverride }: Props) {
+export function BannerCanvas({ input, showSafeArea, seedNonce, seedOverride, fontsReady }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function BannerCanvas({ input, showSafeArea, seedNonce, seedOverride }: P
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     renderBanner(ctx, input, seedOverride);
-  }, [input, seedNonce, seedOverride]);
+  }, [input, seedNonce, seedOverride, fontsReady]);
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl ring-1 ring-white/10 shadow-2xl">

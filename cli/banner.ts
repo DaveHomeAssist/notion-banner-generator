@@ -7,19 +7,36 @@
 //   npx tsx cli/banner.ts --title "Quarterly Review" --preset "Radial Burst" --png
 //   npx tsx cli/banner.ts --list
 
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { argv, exit, version } from "node:process";
 import {
   defaultPresets,
   coercePreset,
   renderBannerSvg,
-  hasMeasurementContext,
+  registerFont,
+  fontsReady,
+  FONT_FILES,
   effectiveSeed,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   type BannerPreset,
+  type FontId,
   type RenderInput,
 } from "../src/core/index";
+
+// Load the bundled TTFs from disk: register for measurement + collect buffers
+// for resvg rasterization. Same bytes the browser loads => identical layout.
+function loadNodeFonts(): Buffer[] {
+  const dir = fileURLToPath(new URL("../src/assets/fonts/", import.meta.url));
+  const buffers: Buffer[] = [];
+  for (const [id, file] of Object.entries(FONT_FILES)) {
+    const buf = readFileSync(dir + file);
+    registerFont(id as FontId, buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+    buffers.push(buf);
+  }
+  return buffers;
+}
 
 function parseArgs(args: string[]): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = {};
@@ -71,6 +88,8 @@ const input: RenderInput = {
   },
 };
 
+const fontBuffers = loadNodeFonts();
+
 const t0 = performance.now();
 const svg = renderBannerSvg(input);
 const ms = (performance.now() - t0).toFixed(1);
@@ -85,7 +104,7 @@ if (args.png) {
   const { Resvg } = await import("@resvg/resvg-js");
   const resvg = new Resvg(svg, {
     fitTo: { mode: "width", value: CANVAS_WIDTH },
-    font: { loadSystemFonts: true, defaultFontFamily: "Helvetica" },
+    font: { fontBuffers, loadSystemFonts: true, defaultFontFamily: "Inter" },
   });
   const png = resvg.render().asPng();
   const pngPath = `${base}.png`;
@@ -100,5 +119,5 @@ console.log(`
   dimensions    : ${CANVAS_WIDTH} × ${CANVAS_HEIGHT}
   svg           : ${svgPath} (${(svg.length / 1024).toFixed(1)} KB, ${ms} ms)
   png           : ${pngNote}
-  text metrics  : ${hasMeasurementContext() ? "native" : "heuristic fallback (no canvas in Node — step 2 fixes this)"}
+  text metrics  : ${fontsReady() ? "exact — bundled fonts, identical to the web app" : "heuristic fallback (fonts not loaded)"}
 `);
