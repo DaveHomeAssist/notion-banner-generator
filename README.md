@@ -9,23 +9,30 @@ Everything renders in your browser — standard compute never sends data anywher
 - **Storage:** local presets + recent exports (localStorage)
 - **AI:** optional enhancement layer, never required to generate
 
-## Status — Phase 1 (Local compute MVP) ✅ built
+**Live:** https://davehomeassist.github.io/notion-banner-generator/
+
+## Status — Phase 1 ✅ + Phase 2 ✅ built
 
 The deterministic engine ships first, exactly as the concept doc's recommended
 path: *build hybrid, but ship standard compute first.*
 
 | Capability | State |
 |---|---|
-| 1500 × 600 live preview, pixel-accurate to export | ✅ |
-| **Notion safe-area overlay** (crop guides, on by default) | ✅ |
-| 6 built-in presets (gradient, blueprint, topographic, terminal, radial, editorial) | ✅ |
-| Seeded, reproducible procedural variation + variation strip | ✅ |
-| Layouts, patterns, textures, palette, typography controls | ✅ |
-| PNG export + reproducible recipe JSON | ✅ |
-| Save/fork presets, recent exports | ✅ |
+| 1500 × 600 live preview, pixel-accurate to export | ✅ P1 |
+| **Notion safe-area overlay** (crop guides, on by default) | ✅ P1 |
+| 6 built-in presets (gradient, blueprint, topographic, terminal, radial, editorial) | ✅ P1 |
+| Seeded, reproducible procedural variation + variation strip | ✅ P1 |
+| Layouts, patterns, textures, palette, typography controls | ✅ P1 |
+| PNG export + reproducible recipe JSON | ✅ P1 |
+| Save/fork presets, recent exports | ✅ P1 |
+| **Backend-agnostic Scene** — Canvas + SVG from one source of truth | ✅ P2 |
+| 4 more patterns (waves, concentric, halftone, mesh) — 11 total | ✅ P2 |
+| Typography polish: letter-spacing, uppercase, legibility shadow, measured fit | ✅ P2 |
+| **SVG export** (vector text + feTurbulence noise) | ✅ P2 |
+| **Batch variations** → dependency-free ZIP + recipes manifest | ✅ P2 |
 | AI provider contract defined, stubbed | ✅ (inactive) |
 | AI concept/palette/refiner generation | ⏳ Phase 3 |
-| SVG export, batch variations, Tauri wrapper | ⏳ Phase 2 / 4 |
+| Tauri wrapper, preset packs, page-type recipes | ⏳ Phase 4 |
 
 ## Design decisions (vs. the concept doc)
 
@@ -53,11 +60,18 @@ src/
     types.ts         #   canonical schema + safe-area + font registry
     rng.ts           #   seeded PRNG (same seed => same pixels)
     palettes.ts      #   color math, readable-ink contrast
-    patterns.ts      #   grid / dots / topographic / radial / orbital / diagonal
-    textures.ts      #   noise / grain / vignette finishing pass
-    layouts.ts       #   safe-area-anchored typography + glyph placement
-    renderBanner.ts  #   bg -> pattern -> type -> texture pipeline
-    exportImage.ts   #   offscreen PNG render + recipe + download
+    scene.ts         #   backend-agnostic primitive model (the shared IR)
+    patterns.ts      #   11 patterns -> Scene primitives
+    textures.ts      #   noise / grain / vignette -> Scene primitives
+    layouts.ts       #   safe-area-anchored typography + glyph -> primitives
+    measure.ts       #   offscreen text measurement for wrap/fit
+    buildScene.ts    #   bg -> pattern -> type -> texture, into one Scene
+    backends/
+      canvasBackend.ts #  Scene -> 2D canvas (preview + PNG)
+      svgBackend.ts    #  Scene -> standalone SVG string (vector export)
+    renderBanner.ts  #   façade: buildScene + pick a backend
+    exportImage.ts   #   PNG + SVG + batch-ZIP export + recipes
+    zip.ts           #   dependency-free STORED zip writer
   data/
     presetSchema.ts  #   coercion/validation for untrusted presets
     defaultPresets.ts#   6 built-ins
@@ -68,8 +82,11 @@ src/
   App.tsx            # orchestrator
 ```
 
-The engine has **no React dependency** — it takes a canvas context and a
-`{ preset, content }` input, so it can later run in a worker, Node, or a CLI.
+The engine has **no React dependency**. The key Phase 2 move is the **Scene** —
+an ordered list of backend-agnostic primitives (`scene.ts`). The renderer builds
+a Scene from `{ preset, content }`; a Canvas backend rasterizes it and an SVG
+backend serializes it. One source of truth means Canvas and SVG **cannot visually
+drift**, and new export formats are just new backends.
 
 ## Develop
 
