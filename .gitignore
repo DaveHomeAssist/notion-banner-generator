@@ -6,3 +6,4 @@ dist-ssr
 .vite
 verify-*.png
 nbg-cli-out.*
+exports/

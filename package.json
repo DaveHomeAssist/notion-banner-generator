@@ -9,12 +9,17 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
+    "typecheck:tools": "tsc -p tsconfig.tools.json",
     "banner": "tsx cli/banner.ts",
+    "mcp": "tsx mcp/server.ts",
+    "mcp:smoke": "tsx scripts/mcp-smoke.ts",
     "test": "tsx tests/fixtures.test.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

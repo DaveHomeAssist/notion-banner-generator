@@ -2,30 +2,20 @@
 // patterns, typography tweaks, AI refiners, or MCP tools can't quietly break a
 // banner. Run with: npm test   (npx tsx tests/fixtures.test.ts)
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
 import {
   buildScene,
   renderBannerSvg,
   defaultPresets,
-  registerFont,
-  FONT_FILES,
-  type FontId,
   type RenderInput,
   type Primitive,
 } from "../src/core/index";
 import { luminance } from "../src/engine/palettes";
 import { makeZip } from "../src/engine/zip";
+import { loadNodeFonts } from "../node/fonts";
 
-// Deterministic measurement needs the bundled fonts registered.
-const dir = fileURLToPath(new URL("../src/assets/fonts/", import.meta.url));
-const fontBuffers: Buffer[] = [];
-for (const [id, file] of Object.entries(FONT_FILES)) {
-  const b = readFileSync(dir + file);
-  registerFont(id as FontId, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
-  fontBuffers.push(b);
-}
+// Deterministic measurement needs the bundled fonts registered; paths feed resvg.
+const fontFiles = loadNodeFonts();
 
 const editorial = defaultPresets.find((p) => p.id === "builtin-editorial")!; // light bg, no glyph
 const blueprint = defaultPresets.find((p) => p.id === "builtin-system-blueprint")!; // has glyph
@@ -80,7 +70,7 @@ await check("SVG export is vector with real <text>", () => {
 await check("PNG rasterization has a valid PNG header", () => {
   const svg = renderBannerSvg({ preset: editorial, content: { title: "Hello" } });
   const png = new Resvg(svg, {
-    font: { fontBuffers, loadSystemFonts: true, defaultFontFamily: "Inter" },
+    font: { fontFiles, loadSystemFonts: true, defaultFontFamily: "Inter" },
   })
     .render()
     .asPng();

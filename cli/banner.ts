@@ -7,36 +7,20 @@
 //   npx tsx cli/banner.ts --title "Quarterly Review" --preset "Radial Burst" --png
 //   npx tsx cli/banner.ts --list
 
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { writeFileSync } from "node:fs";
 import { argv, exit, version } from "node:process";
 import {
   defaultPresets,
   coercePreset,
   renderBannerSvg,
-  registerFont,
   fontsReady,
-  FONT_FILES,
   effectiveSeed,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   type BannerPreset,
-  type FontId,
   type RenderInput,
 } from "../src/core/index";
-
-// Load the bundled TTFs from disk: register for measurement + collect buffers
-// for resvg rasterization. Same bytes the browser loads => identical layout.
-function loadNodeFonts(): Buffer[] {
-  const dir = fileURLToPath(new URL("../src/assets/fonts/", import.meta.url));
-  const buffers: Buffer[] = [];
-  for (const [id, file] of Object.entries(FONT_FILES)) {
-    const buf = readFileSync(dir + file);
-    registerFont(id as FontId, buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
-    buffers.push(buf);
-  }
-  return buffers;
-}
+import { loadNodeFonts } from "../node/fonts";
 
 function parseArgs(args: string[]): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = {};
@@ -88,7 +72,7 @@ const input: RenderInput = {
   },
 };
 
-const fontBuffers = loadNodeFonts();
+const fontFiles = loadNodeFonts();
 
 const t0 = performance.now();
 const svg = renderBannerSvg(input);
@@ -104,7 +88,7 @@ if (args.png) {
   const { Resvg } = await import("@resvg/resvg-js");
   const resvg = new Resvg(svg, {
     fitTo: { mode: "width", value: CANVAS_WIDTH },
-    font: { fontBuffers, loadSystemFonts: true, defaultFontFamily: "Inter" },
+    font: { fontFiles, loadSystemFonts: true, defaultFontFamily: "Inter" },
   });
   const png = resvg.render().asPng();
   const pngPath = `${base}.png`;
