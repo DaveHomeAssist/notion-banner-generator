@@ -19,6 +19,14 @@ function measureCtx(): CanvasRenderingContext2D | null {
   return ctx;
 }
 
+/** True when a real 2D context is available for pixel-accurate text metrics
+ * (browser/worker). False in plain Node, where measureWidth() falls back to a
+ * width heuristic — so wrapping can differ across environments until a Node
+ * font-metrics path lands (step 2). */
+export function hasMeasurementContext(): boolean {
+  return measureCtx() !== null;
+}
+
 export function measureWidth(
   text: string,
   font: string,

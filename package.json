@@ -8,13 +8,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "banner": "tsx cli/banner.ts"
   },
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.1.10",
     "@types/node": "^22.19.21",
     "@types/react": "^19.1.0",
@@ -22,6 +24,7 @@
     "@vitejs/plugin-react": "^4.5.0",
     "playwright": "^1.61.0",
     "tailwindcss": "^4.1.10",
+    "tsx": "^4.22.4",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }
