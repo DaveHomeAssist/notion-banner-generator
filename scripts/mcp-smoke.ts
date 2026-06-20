@@ -2,6 +2,7 @@
 // real MCP client, and exercise every tool. Proves the server speaks MCP and
 // that banner-core renders through it. Run: npm run mcp:smoke
 import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -60,7 +61,66 @@ const pngPath = pngLink?.uri?.replace("file://", "") ?? "";
 check("render_png returns a png resource link", pngLink?.mimeType === "image/png");
 check("render_png wrote the file to the sandbox", !!pngPath && existsSync(pngPath), pngPath);
 
+// Freeform mode with NO provider configured on this server -> deterministic fallback.
+const fb = await call("create_recipe", {
+  context: "Quarterly business review deck for the finance team. Mood: serious, data-driven.",
+});
+const fbText = textOf(fb);
+check(
+  "create_recipe(context) with no provider -> deterministic fallback + note",
+  fbText.includes('"source": "fallback"') && fbText.includes("no AI provider"),
+  fbText.slice(0, 120),
+);
+
 await client.close();
+
+// Freeform AI path: stand up a mock OpenAI-compatible endpoint and point a second
+// server instance at it via env, proving the provider adapter end-to-end.
+const mock = createServer((req, res) => {
+  if ((req.url ?? "").endsWith("/models")) {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end("{}");
+    return;
+  }
+  let body = "";
+  req.on("data", (c) => (body += c));
+  req.on("end", () => {
+    const intent = { title: "Finance Review", subtitle: "FY26", presetId: "builtin-system-blueprint", pattern: "grid", mood: ["serious"] };
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(intent) } }] }));
+  });
+});
+await new Promise<void>((r) => mock.listen(0, "127.0.0.1", () => r()));
+const addr = mock.address();
+const port = typeof addr === "object" && addr ? addr.port : 0;
+
+const cleanEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([, v]) => typeof v === "string"),
+) as Record<string, string>;
+const aiTransport = new StdioClientTransport({
+  command: "npx",
+  args: ["tsx", "mcp/server.ts"],
+  env: {
+    ...cleanEnv,
+    NBG_AI_PROVIDER: "openai-compatible",
+    NBG_AI_BASE_URL: `http://127.0.0.1:${port}/v1`,
+    NBG_AI_MODEL: "mock",
+  },
+});
+const aiClient = new Client({ name: "nbg-smoke-ai", version: "0.0.0" });
+await aiClient.connect(aiTransport);
+const aiRecipe = (await aiClient.callTool({
+  name: "create_recipe",
+  arguments: { context: "Need a banner for our quarterly finance review." },
+})) as Result;
+const aiText = textOf(aiRecipe);
+check(
+  "create_recipe(context) with mock AI provider -> source ai + AI-derived title",
+  aiText.includes('"source": "ai"') && aiText.includes("Finance Review"),
+  aiText.slice(0, 120),
+);
+await aiClient.close();
+mock.close();
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);

@@ -13,7 +13,7 @@
     "banner": "tsx cli/banner.ts",
     "mcp": "tsx mcp/server.ts",
     "mcp:smoke": "tsx scripts/mcp-smoke.ts",
-    "test": "tsx tests/fixtures.test.ts"
+    "test": "tsx tests/fixtures.test.ts && tsx tests/providers.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

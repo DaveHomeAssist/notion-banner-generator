@@ -35,8 +35,9 @@ path: *build hybrid, but ship standard compute first.*
 | Bundled OFL fonts (Inter, JetBrains Mono, Lora) — no system-font drift | ✅ R |
 | Golden contract tests (`npm test`) | ✅ R |
 | **Stdio MCP server** — 5 tools over banner-core (`npm run mcp`) | ✅ R |
-| AI provider contract defined, stubbed | ✅ (inactive) |
-| AI concept/palette/refiner generation | ⏳ Phase 3 |
+| **AI provider adapters** (Ollama / LM Studio / OpenAI-compatible / DaveLLM Router) | ✅ P3A |
+| **Freeform `create_recipe`** — context → recipe intent → coerced recipe (optional, graceful fallback) | ✅ P3A |
+| AI palette/refiner/image-prompt generation in the web UI | ⏳ Phase 3B |
 | Tauri wrapper, preset packs, page-type recipes | ⏳ Phase 4 |
 
 > **R = reliability layer** (MCP-readiness). Before exposing the renderer to AI
@@ -185,6 +186,48 @@ Register it with an MCP client (e.g. Claude Desktop / Code):
   }
 }
 ```
+
+## AI providers (Phase 3 — optional)
+
+AI is an **enhancement, never a dependency**. The app, CLI, and MCP server all
+work with no provider configured. When one *is* configured, `create_recipe` can
+take freeform `context` and turn it into a recipe. Crucially, the model only
+emits a **recipe intent** (loose, all-optional fields) — that intent is mapped
+onto a preset and run through the same `coercePreset` validation as everything
+else, so **final rendering stays deterministic and valid no matter what the model
+returns**. No image generation; no model-controlled file paths; PII/secrets are
+redacted before any call.
+
+The MCP server reads provider config from the environment:
+
+| Var | Meaning |
+|---|---|
+| `NBG_AI_PROVIDER` | `ollama` \| `lmstudio` \| `openai-compatible` \| `davellm-router` (unset = AI off) |
+| `NBG_AI_BASE_URL` | endpoint base (per-provider default otherwise) |
+| `NBG_AI_MODEL` | model name |
+| `NBG_AI_API_KEY` | Bearer token (held in memory only; for authenticated endpoints) |
+| `NBG_AI_TIMEOUT_MS` | generation timeout (default 20000) |
+
+Examples:
+
+```bash
+# Ollama (default http://localhost:11434)
+NBG_AI_PROVIDER=ollama NBG_AI_MODEL=llama3 npm run mcp
+
+# LM Studio (default http://localhost:1234/v1)
+NBG_AI_PROVIDER=lmstudio NBG_AI_MODEL=local-model npm run mcp
+
+# DaveLLM Router / any OpenAI-compatible endpoint (default http://localhost:8000/v1)
+NBG_AI_PROVIDER=davellm-router NBG_AI_MODEL=router npm run mcp
+NBG_AI_PROVIDER=openai-compatible NBG_AI_BASE_URL=http://host:port/v1 NBG_AI_API_KEY=… npm run mcp
+```
+
+Behaviour of `create_recipe`:
+- **Explicit mode** (`title` + optional fields) — unchanged, fully deterministic.
+- **Freeform mode** (`context`) — if a provider is configured and reachable, the
+  recipe is AI-derived (`source: "ai"`); otherwise a **deterministic fallback**
+  recipe is returned (`source: "fallback"`) with a `notes` array explaining why.
+  Any provider error degrades to the same fallback — it never crashes.
 
 ## Deploy
 

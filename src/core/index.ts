@@ -60,3 +60,18 @@ export { coercePreset, forkPreset, makePresetId } from "../data/presetSchema";
 
 // --- Recipe shape (pure type) ---
 export type { ExportRecipe } from "../engine/exportImage";
+
+// --- Optional AI layer (Phase 3). Fetch-based, headless-safe; never renders.
+// The web app does not import this barrel, so zod stays out of the web bundle. ---
+export type { ProviderKind, ProviderConfig, BannerProvider } from "../ai/providers";
+export { createProvider, providerFromEnv, redactContext } from "../ai/providers";
+export type { RecipeIntent } from "../ai/recipeIntent";
+export {
+  parseRecipeIntent,
+  buildMessages,
+  intentToRenderInput,
+  deriveTitle,
+  IntentParseError,
+} from "../ai/recipeIntent";
+export type { DerivedRecipe } from "../ai/derive";
+export { deriveRecipeFromContext, fallbackRecipe } from "../ai/derive";

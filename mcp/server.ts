@@ -20,6 +20,8 @@ import {
   coercePreset,
   renderBannerSvg,
   effectiveSeed,
+  deriveRecipeFromContext,
+  providerFromEnv,
   CANVAS_WIDTH,
   CANVAS_HEIGHT,
   type BannerPreset,
@@ -36,6 +38,12 @@ mkdirSync(EXPORTS_DIR, { recursive: true });
 
 const MAX_TITLE = 200;
 const MAX_SUBTITLE = 300;
+const MAX_CONTEXT = 4000;
+
+// Optional AI provider, built from env (NBG_AI_PROVIDER / _BASE_URL / _MODEL /
+// _API_KEY). null when AI is unconfigured — create_recipe then falls back
+// deterministically. AI is never required for any tool.
+const aiProvider = providerFromEnv(env);
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "untitled";
@@ -65,14 +73,26 @@ const recipeFields = {
   preset: z.record(z.string(), z.unknown()).optional().describe("A full preset object (e.g. from create_recipe). Overrides presetId."),
   overrides: z.record(z.string(), z.unknown()).optional().describe("Partial preset overrides: palette, typography, layout, pattern, texture, glyph."),
 };
+// create_recipe also accepts freeform context; render tools keep title required.
+const createRecipeFields = {
+  ...recipeFields,
+  title: z.string().min(1).max(MAX_TITLE).optional().describe("Banner title (required unless 'context' is provided)."),
+  context: z
+    .string()
+    .max(MAX_CONTEXT)
+    .optional()
+    .describe("Freeform page context. With an AI provider configured it is turned into a recipe; otherwise a deterministic fallback recipe is returned."),
+};
+
 type RecipeArgs = {
-  title: string;
+  title?: string;
   subtitle?: string;
   presetId?: string;
   seed?: string;
   glyph?: string;
   preset?: Record<string, unknown>;
   overrides?: Record<string, unknown>;
+  context?: string;
 };
 
 /** Build a validated RenderInput from loose args, a full preset, or overrides. */
@@ -93,7 +113,7 @@ function buildInput(a: RecipeArgs): RenderInput {
   }
   if (a.seed) preset.seed = a.seed;
   if (a.glyph !== undefined) preset.glyph = a.glyph;
-  return { preset, content: { title: a.title, subtitle: a.subtitle } };
+  return { preset, content: { title: a.title ?? "Untitled", subtitle: a.subtitle } };
 }
 
 function text(value: unknown) {
@@ -117,11 +137,31 @@ server.registerTool(
   {
     title: "Create a banner recipe",
     description:
-      "Turn structured inputs (title, optional subtitle/preset/seed/glyph/overrides) into a validated, reproducible banner recipe. The recipe fully defines the banner; pass it to render_svg/render_png.",
-    inputSchema: recipeFields,
+      "Turn inputs into a validated, reproducible banner recipe. Explicit mode: pass `title` (+ optional subtitle/preset/seed/glyph/overrides). Freeform mode: pass `context` — with an AI provider configured it derives the recipe, otherwise a deterministic fallback is returned (source/notes are included). Either way the recipe is coerced and fully defines the banner; pass it to render_svg/render_png.",
+    inputSchema: createRecipeFields,
   },
   async (a) => {
-    const input = buildInput(a as RecipeArgs);
+    const args = a as RecipeArgs;
+
+    // Freeform mode — optional AI, deterministic fallback. Final recipe is
+    // always coerced (banner-core), so output is valid regardless of the model.
+    if (args.context && args.context.trim()) {
+      const { input, notes, source } = await deriveRecipeFromContext(args.context, { provider: aiProvider });
+      if (args.title) input.content.title = args.title.slice(0, MAX_TITLE);
+      if (args.subtitle !== undefined) input.content.subtitle = args.subtitle.slice(0, MAX_SUBTITLE);
+      if (args.seed) input.preset.seed = args.seed;
+      if (args.glyph !== undefined) input.preset.glyph = args.glyph;
+      return text({ preset: input.preset, content: input.content, seed: effectiveSeed(input), source, notes });
+    }
+
+    // Explicit mode — unchanged behaviour.
+    if (!args.title) {
+      return {
+        content: [{ type: "text" as const, text: "Error: provide `title` (explicit mode) or `context` (freeform mode)." }],
+        isError: true,
+      };
+    }
+    const input = buildInput(args);
     return text({ preset: input.preset, content: input.content, seed: effectiveSeed(input) });
   },
 );
@@ -217,4 +257,6 @@ server.registerTool(
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error(`[notion-banner-generator] MCP server ready on stdio · exports -> ${EXPORTS_DIR}`);
+console.error(
+  `[notion-banner-generator] MCP server ready on stdio · exports -> ${EXPORTS_DIR} · AI: ${aiProvider ? aiProvider.label : "unconfigured (freeform falls back deterministically)"}`,
+);
