@@ -21,9 +21,12 @@ import {
   saveSavedPresets,
   loadRecents,
   pushRecent,
+  loadAiConfig,
+  saveAiConfig,
 } from "./data/storage";
 import { ensureWebFonts } from "./web/fonts";
 import { BannerCanvas } from "./components/BannerCanvas";
+import { AiPanel, type AiConfig, type AiResult } from "./components/AiPanel";
 import {
   Section,
   Field,
@@ -96,6 +99,35 @@ export default function App() {
 
   const [batchCount, setBatchCount] = useState(4);
   const [busy, setBusy] = useState(false);
+
+  // --- AI (optional, lazy). Config persists minus the apiKey (in-memory only).
+  const [aiConfig, setAiConfig] = useState<AiConfig>(() => ({ ...loadAiConfig(), apiKey: "" }));
+  const [aiContext, setAiContext] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiResult, setAiResult] = useState<AiResult | null>(null);
+  function updateAiConfig(patch: Partial<AiConfig>) {
+    setAiConfig((c) => {
+      const next = { ...c, ...patch };
+      saveAiConfig({ kind: next.kind, baseUrl: next.baseUrl, model: next.model });
+      return next;
+    });
+  }
+  async function generateFromContext() {
+    setAiBusy(true);
+    setAiResult(null);
+    try {
+      // Lazy chunk: the AI layer (and zod) loads only on demand.
+      const { generateFromContext: gen } = await import("./web/ai");
+      const r = await gen(aiContext, aiConfig);
+      setPreset(r.input.preset);
+      setContent(r.input.content);
+      setAiResult({ source: r.source, notes: r.notes });
+    } catch (e) {
+      setAiResult({ source: "fallback", notes: [`generation error: ${e instanceof Error ? e.message : String(e)}`] });
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   async function exportPng() {
     const { blob, filename } = await renderToPng(input);
@@ -289,7 +321,15 @@ export default function App() {
             </div>
           </Section>
 
-          <AiPanel mode={mode} />
+          <AiPanel
+            config={aiConfig}
+            setConfig={updateAiConfig}
+            context={aiContext}
+            setContext={setAiContext}
+            onGenerate={generateFromContext}
+            busy={aiBusy}
+            result={aiResult}
+          />
 
           {recents.length > 0 && (
             <Section title="Recent exports">
@@ -345,20 +385,3 @@ function Header({ mode, setMode }: { mode: BannerMode; setMode: (m: BannerMode) 
   );
 }
 
-function AiPanel({ mode }: { mode: BannerMode }) {
-  return (
-    <Section title="AI enhancement">
-      <div className="rounded-lg border border-purple-400/20 bg-purple-500/5 p-3">
-        <p className="text-xs text-slate-300">
-          The AI concept generator, palette/motif suggestions, and preset refiner land in <strong>Phase 3</strong>. The provider contract (Ollama, LM Studio, DaveLLM Router, OpenAI-compatible, hosted) is already wired; standard compute is fully functional today.
-        </p>
-        <p className="mt-2 text-[11px] text-slate-500">
-          Privacy: standard compute never sends data anywhere. AI mode will label the provider destination and redact context before any remote call.
-        </p>
-        {mode !== "standard" && (
-          <p className="mt-2 text-[11px] text-amber-300">Selected mode is inactive until Phase 3 — rendering falls back to standard compute.</p>
-        )}
-      </div>
-    </Section>
-  );
-}

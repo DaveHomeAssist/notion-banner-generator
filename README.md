@@ -37,7 +37,8 @@ path: *build hybrid, but ship standard compute first.*
 | **Stdio MCP server** — 5 tools over banner-core (`npm run mcp`) | ✅ R |
 | **AI provider adapters** (Ollama / LM Studio / OpenAI-compatible / DaveLLM Router) | ✅ P3A |
 | **Freeform `create_recipe`** — context → recipe intent → coerced recipe (optional, graceful fallback) | ✅ P3A |
-| AI palette/refiner/image-prompt generation in the web UI | ⏳ Phase 3B |
+| **Web AI panel** — provider config + "describe page → generate" in the app (lazy-loaded; zod in a separate chunk) | ✅ P3B |
+| AI palette/refiner suggestions + image-prompt builder | ⏳ Phase 3C |
 | Tauri wrapper, preset packs, page-type recipes | ⏳ Phase 4 |
 
 > **R = reliability layer** (MCP-readiness). Before exposing the renderer to AI
@@ -190,8 +191,11 @@ Register it with an MCP client (e.g. Claude Desktop / Code):
 ## AI providers (Phase 3 — optional)
 
 AI is an **enhancement, never a dependency**. The app, CLI, and MCP server all
-work with no provider configured. When one *is* configured, `create_recipe` can
-take freeform `context` and turn it into a recipe. Crucially, the model only
+work with no provider configured. In the **web app**, the right-panel *AI
+(optional)* section lets you pick a provider, paste page context, and "Generate"
+— the AI layer (and zod) is **lazy-loaded** as a separate chunk, so it costs
+nothing until used, and unreachable providers degrade to the deterministic
+fallback. Via MCP, `create_recipe` takes the same freeform `context`. Crucially, the model only
 emits a **recipe intent** (loose, all-optional fields) — that intent is mapped
 onto a preset and run through the same `coercePreset` validation as everything
 else, so **final rendering stays deterministic and valid no matter what the model

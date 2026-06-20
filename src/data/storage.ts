@@ -8,6 +8,7 @@ import { coercePreset } from "./presetSchema";
 
 const PRESETS_KEY = "nbg.presets.v1";
 const RECENTS_KEY = "nbg.recents.v1";
+const AI_CONFIG_KEY = "nbg.ai.v1";
 const MAX_RECENTS = 12;
 
 function read<T>(key: string, fallback: T): T {
@@ -44,4 +45,21 @@ export function pushRecent(recipe: ExportRecipe): ExportRecipe[] {
   const next = [recipe, ...loadRecents()].slice(0, MAX_RECENTS);
   write(RECENTS_KEY, next);
   return next;
+}
+
+// AI provider config — persisted WITHOUT the apiKey (held in memory only, per
+// the privacy rule). Endpoint/model are convenience, not secrets.
+export interface StoredAiConfig {
+  kind: string;
+  baseUrl: string;
+  model: string;
+}
+
+export function loadAiConfig(): StoredAiConfig {
+  const c = read<Partial<StoredAiConfig>>(AI_CONFIG_KEY, {});
+  return { kind: c.kind ?? "none", baseUrl: c.baseUrl ?? "", model: c.model ?? "" };
+}
+
+export function saveAiConfig(c: StoredAiConfig): void {
+  write(AI_CONFIG_KEY, { kind: c.kind, baseUrl: c.baseUrl, model: c.model });
 }
