@@ -9,6 +9,8 @@ import {
   deriveTitle,
   deriveRecipeFromContext,
   createProvider,
+  suggestPalettes,
+  defaultPresets,
   IntentParseError,
 } from "../src/core/index";
 
@@ -117,6 +119,26 @@ await check("garbage model output degrades to fallback (no crash)", async () => 
       const provider = createProvider({ kind: "openai-compatible", baseUrl: "http://localhost:9/v1" });
       const r = await deriveRecipeFromContext("ctx", { provider });
       assert.equal(r.source, "fallback");
+    },
+  );
+});
+
+await check("suggestPalettes falls back to color-harmony with no provider", async () => {
+  const base = defaultPresets[0].palette;
+  const r = await suggestPalettes("a calm finance review", base, {});
+  assert.equal(r.source, "fallback");
+  assert.ok(r.suggestions.length >= 6);
+  assert.deepEqual(r.suggestions[0].palette, base); // Original first
+});
+
+await check("suggestPalettes uses an AI-seeded base when a provider responds", async () => {
+  await withMockFetch(
+    (url) => (url.endsWith("/models") ? new Response("{}", { status: 200 }) : chat('{"palette":{"primary":"#ff0000"}}')),
+    async () => {
+      const provider = createProvider({ kind: "openai-compatible", baseUrl: "http://localhost:9/v1" });
+      const r = await suggestPalettes("vivid energetic launch", defaultPresets[0].palette, { provider });
+      assert.equal(r.source, "ai");
+      assert.equal(r.suggestions[0].palette.primary, "#ff0000"); // AI primary seeded the set
     },
   );
 });

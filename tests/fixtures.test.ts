@@ -7,6 +7,8 @@ import {
   buildScene,
   renderBannerSvg,
   defaultPresets,
+  paletteSchemes,
+  buildImagePrompt,
   type RenderInput,
   type Primitive,
 } from "../src/core/index";
@@ -81,6 +83,26 @@ await check("ZIP writer emits a valid PK header", async () => {
   const zip = makeZip([{ name: "recipes.json", data: new TextEncoder().encode("{}") }]);
   const bytes = new Uint8Array(await zip.arrayBuffer());
   assert.deepEqual([...bytes.subarray(0, 2)], [0x50, 0x4b]);
+});
+
+await check("paletteSchemes yields several valid, distinct palettes", () => {
+  const schemes = paletteSchemes(editorial.palette);
+  assert.ok(schemes.length >= 6, `only ${schemes.length} schemes`);
+  const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+  for (const s of schemes) {
+    for (const c of Object.values(s.palette)) assert.match(c, HEX, `bad color in ${s.name}: ${c}`);
+  }
+  assert.equal(schemes[0].name, "Original");
+  assert.deepEqual(schemes[0].palette, editorial.palette); // Original is the base
+  // at least one scheme actually differs from the base
+  assert.ok(schemes.slice(1).some((s) => JSON.stringify(s.palette) !== JSON.stringify(editorial.palette)));
+});
+
+await check("buildImagePrompt describes the recipe (no text, palette, theme)", () => {
+  const prompt = buildImagePrompt(blueprint, { title: "Systems Lab" });
+  assert.match(prompt, /no text/i);
+  assert.ok(prompt.includes(blueprint.palette.background));
+  assert.ok(prompt.includes("Systems Lab"));
 });
 
 console.log(`\n${failed === 0 ? "✅" : "❌"} ${passed} passed, ${failed} failed`);

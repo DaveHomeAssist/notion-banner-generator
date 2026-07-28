@@ -1,6 +1,8 @@
 import { createProvider } from "../ai/providers";
 import { deriveRecipeFromContext, type DerivedRecipe } from "../ai/derive";
+import { suggestPalettes, type PaletteSuggestionResult } from "../ai/suggest";
 import type { ProviderKind } from "../ai/providers";
+import type { Palette } from "../engine/types";
 
 // Web AI bridge. This module (and its zod-using transitive deps) is loaded ONLY
 // via dynamic import() from App, so Vite splits it into a separate chunk — the
@@ -25,9 +27,11 @@ export interface WebAiConfig {
 
 const KINDS: ProviderKind[] = ["ollama", "lmstudio", "openai-compatible", "davellm-router"];
 
-export async function generateFromContext(context: string, config: WebAiConfig): Promise<DerivedRecipe> {
+export type { PaletteSuggestionResult } from "../ai/suggest";
+
+function providerFor(config: WebAiConfig) {
   const kind = KINDS.find((k) => k === config.kind);
-  const provider = kind
+  return kind
     ? createProvider({
         kind,
         baseUrl: config.baseUrl || undefined,
@@ -35,5 +39,12 @@ export async function generateFromContext(context: string, config: WebAiConfig):
         apiKey: config.apiKey || undefined,
       })
     : null;
-  return deriveRecipeFromContext(context, { provider });
+}
+
+export async function generateFromContext(context: string, config: WebAiConfig): Promise<DerivedRecipe> {
+  return deriveRecipeFromContext(context, { provider: providerFor(config) });
+}
+
+export async function suggestPalettesWeb(context: string, base: Palette, config: WebAiConfig): Promise<PaletteSuggestionResult> {
+  return suggestPalettes(context, base, { provider: providerFor(config) });
 }

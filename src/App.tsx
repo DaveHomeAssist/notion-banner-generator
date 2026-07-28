@@ -3,10 +3,13 @@ import type {
   BannerContent,
   BannerMode,
   BannerPreset,
+  Palette,
   RenderInput,
 } from "./engine/types";
 import { LAYOUTS, PATTERNS, TEXTURES, FONT_REGISTRY } from "./engine/types";
 import { effectiveSeed } from "./engine/renderBanner";
+import { paletteSchemes, type PaletteScheme } from "./engine/palettes";
+import { buildImagePrompt } from "./engine/imagePrompt";
 import {
   renderToPng,
   renderToSvg,
@@ -126,6 +129,43 @@ export default function App() {
       setAiResult({ source: "fallback", notes: [`generation error: ${e instanceof Error ? e.message : String(e)}`] });
     } finally {
       setAiBusy(false);
+    }
+  }
+
+  // Palette suggestions: instant deterministic harmonies with no provider; lazy
+  // AI-seeded set when one is configured. Either way returns valid palettes.
+  const [paletteSuggestions, setPaletteSuggestions] = useState<PaletteScheme[] | null>(null);
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+
+  async function suggestPalettes() {
+    if (aiConfig.kind === "none") {
+      setPaletteSuggestions(paletteSchemes(preset.palette)); // pure, instant
+      return;
+    }
+    setSuggestBusy(true);
+    try {
+      const { suggestPalettesWeb } = await import("./web/ai");
+      const r = await suggestPalettesWeb(aiContext, preset.palette, aiConfig);
+      setPaletteSuggestions(r.suggestions);
+    } catch {
+      setPaletteSuggestions(paletteSchemes(preset.palette));
+    } finally {
+      setSuggestBusy(false);
+    }
+  }
+
+  function applyPalette(palette: Palette) {
+    setPreset((p) => ({ ...p, palette }));
+  }
+
+  async function copyImagePrompt() {
+    try {
+      await navigator.clipboard.writeText(buildImagePrompt(preset, content));
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 1500);
+    } catch {
+      // clipboard blocked — non-fatal
     }
   }
 
@@ -329,6 +369,12 @@ export default function App() {
             onGenerate={generateFromContext}
             busy={aiBusy}
             result={aiResult}
+            onSuggestPalettes={suggestPalettes}
+            suggestBusy={suggestBusy}
+            paletteSuggestions={paletteSuggestions}
+            onApplyPalette={applyPalette}
+            onCopyImagePrompt={copyImagePrompt}
+            copiedPrompt={copiedPrompt}
           />
 
           {recents.length > 0 && (

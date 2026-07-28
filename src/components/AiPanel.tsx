@@ -1,4 +1,6 @@
 import { Section, Field, TextInput, Select, Button } from "./ui";
+import type { Palette } from "../engine/types";
+import type { PaletteScheme } from "../engine/palettes";
 
 // Optional AI panel. Turns freeform page context into a banner recipe via a
 // configured provider — or a deterministic fallback when AI is off/unreachable.
@@ -53,9 +55,29 @@ interface Props {
   onGenerate: () => void;
   busy: boolean;
   result: AiResult | null;
+  onSuggestPalettes: () => void;
+  suggestBusy: boolean;
+  paletteSuggestions: PaletteScheme[] | null;
+  onApplyPalette: (palette: Palette) => void;
+  onCopyImagePrompt: () => void;
+  copiedPrompt: boolean;
 }
 
-export function AiPanel({ config, setConfig, context, setContext, onGenerate, busy, result }: Props) {
+export function AiPanel({
+  config,
+  setConfig,
+  context,
+  setContext,
+  onGenerate,
+  busy,
+  result,
+  onSuggestPalettes,
+  suggestBusy,
+  paletteSuggestions,
+  onApplyPalette,
+  onCopyImagePrompt,
+  copiedPrompt,
+}: Props) {
   const dest = destination(config.kind, config.baseUrl, config.apiKey);
   const aiOn = config.kind !== "none";
 
@@ -120,6 +142,38 @@ export function AiPanel({ config, setConfig, context, setContext, onGenerate, bu
                 {i > 0 ? " · " : ""}
                 {n}
               </span>
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2 border-t border-white/10 pt-3">
+          <Button onClick={onSuggestPalettes} disabled={suggestBusy} title="Color-harmony palettes (AI-seeded if a provider is set)">
+            {suggestBusy ? "Suggesting…" : "Suggest palettes"}
+          </Button>
+          <Button onClick={onCopyImagePrompt} title="Copy a text-to-image prompt describing this banner">
+            {copiedPrompt ? "Copied ✓" : "Copy image prompt"}
+          </Button>
+        </div>
+
+        {paletteSuggestions && (
+          <div className="grid grid-cols-2 gap-1.5">
+            {paletteSuggestions.map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => onApplyPalette(s.palette)}
+                title={`Apply ${s.name}`}
+                className="group overflow-hidden rounded-md ring-1 ring-white/10 transition hover:ring-sky-400/60"
+              >
+                <span className="flex h-5">
+                  {[s.palette.background, s.palette.primary, s.palette.secondary, s.palette.accent].map((c, j) => (
+                    <span key={j} className="flex-1" style={{ backgroundColor: c }} />
+                  ))}
+                </span>
+                <span className="block bg-black/30 px-1 py-0.5 text-left text-[10px] text-slate-300 group-hover:text-sky-200">
+                  {s.name}
+                </span>
+              </button>
             ))}
           </div>
         )}

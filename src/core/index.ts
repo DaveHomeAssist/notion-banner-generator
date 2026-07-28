@@ -37,6 +37,11 @@ export {
   isFontId,
 } from "../engine/types";
 
+// --- Color-harmony palettes + image-prompt builder (pure, headless-safe) ---
+export type { PaletteScheme } from "../engine/palettes";
+export { paletteSchemes, hexToHsl, hslToHex } from "../engine/palettes";
+export { buildImagePrompt } from "../engine/imagePrompt";
+
 // --- Scene model + SVG serialization (pure) ---
 export type { Scene, Primitive, GradientStop } from "../engine/scene";
 export { buildScene, effectiveSeed } from "../engine/buildScene";
@@ -75,3 +80,5 @@ export {
 } from "../ai/recipeIntent";
 export type { DerivedRecipe } from "../ai/derive";
 export { deriveRecipeFromContext, fallbackRecipe } from "../ai/derive";
+export type { PaletteSuggestionResult } from "../ai/suggest";
+export { suggestPalettes } from "../ai/suggest";
